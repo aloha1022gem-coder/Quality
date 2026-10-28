@@ -2,9 +2,10 @@
 
 用法：
     python tools/build_static.py                      # 输出 dist/sqm_insight_offline.html
+    python tools/build_static.py --app field          # 输出 dist/field_tracking_offline.html（售后故障追踪）
     python tools/build_static.py --fragment out.html  # 另外输出不含 <html>/<head> 外壳的页面片段（用于在线发布）
 
-数据快照在构建时用内存数据库重新生成，不读写 data/sqm.db。
+数据快照在构建时用内存数据库重新生成，不读写 data/ 下的数据库。
 """
 import argparse
 import json
@@ -16,10 +17,16 @@ sys.path.insert(0, ROOT)
 
 from sqm import analytics, capa, governance, reference as ref  # noqa: E402
 from sqm.db import Database  # noqa: E402
+from sqm.field import analytics as fa, records, reference as fref, service  # noqa: E402
+from sqm.field.db import FieldDatabase  # noqa: E402
+from sqm.field.seed import seed as seed_field  # noqa: E402
 from sqm.knowledge import KnowledgeBase  # noqa: E402
 from sqm.seed import seed  # noqa: E402
 
-TITLE = "SQM Insight"
+APPS = {
+    "sqm": ("SQM Insight", "sqm_insight_offline.html"),
+    "field": ("售后故障追踪", "field_tracking_offline.html"),
+}
 
 
 def build_bundle():
@@ -59,13 +66,39 @@ def build_bundle():
     }
 
 
+def build_field_bundle():
+    db = FieldDatabase(":memory:")
+    seed_field(db)
+    fd = fa.FieldData(db)
+    rel = fa.reliability(db, fd)
+    return {
+        "get": {
+            "meta": service.meta(db, mode="static"),
+            "overview": fa.overview(db, fd),
+            "batches": fa.batch_matrix(db, fd),
+            "reliability": rel,
+            "pareto": fa.pareto_cube(db, fd),
+            "suppliers": fa.supplier_scores(db, fd),
+            "actions": fa.actions(db, fd, rel),
+            "rules": service.rules(db),
+        },
+        "records": records.list_records(db),
+        "trace": {b["batch_no"]: records.batch_detail(db, fd, b) for b in fd.batches.values()},
+        "install_lag": fref.INSTALL_LAG_DAYS, "handling": fref.HANDLING, "service_fee": fref.SERVICE_FEE,
+    }
+
+
 def read(path):
     with open(os.path.join(ROOT, path), encoding="utf-8") as f:
         return f.read()
 
 
-def body_html(bundle):
+def body_html(bundle, app="sqm"):
     data = json.dumps(bundle, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    if app == "field":
+        return (f"<style>\n{read('web/app.css')}\n{read('web/field.css')}\n</style>\n<div id=\"app\"></div>\n"
+                f"<script>window.FIELD_BUNDLE={data};</script>\n"
+                f"<script>\n{read('web/field-static.js')}\n</script>\n<script>\n{read('web/field.js')}\n</script>\n")
     return (f"<style>\n{read('web/app.css')}\n</style>\n<div id=\"app\"></div>\n"
             f"<script>window.SQM_BUNDLE={data};</script>\n"
             f"<script>\n{read('web/static-backend.js')}\n</script>\n<script>\n{read('web/app.js')}\n</script>\n")
@@ -73,19 +106,22 @@ def body_html(bundle):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--out", default=os.path.join(ROOT, "dist", "sqm_insight_offline.html"))
+    p.add_argument("--app", choices=sorted(APPS), default="sqm")
+    p.add_argument("--out", help="输出文件，默认 dist/ 下按应用命名")
     p.add_argument("--fragment", help="同时输出不含文档外壳的页面片段")
     args = p.parse_args()
-    body = body_html(build_bundle())
+    title, filename = APPS[args.app]
+    args.out = args.out or os.path.join(ROOT, "dist", filename)
+    body = body_html(build_field_bundle() if args.app == "field" else build_bundle(), args.app)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write("<!doctype html>\n<html lang=\"zh-CN\">\n<head>\n<meta charset=\"utf-8\">\n"
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
-                f"<title>{TITLE}</title>\n</head>\n<body>\n{body}</body>\n</html>\n")
+                f"<title>{title}</title>\n</head>\n<body>\n{body}</body>\n</html>\n")
     print("已生成", args.out)
     if args.fragment:
         with open(args.fragment, "w", encoding="utf-8") as f:
-            f.write(f"<title>{TITLE}</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n{body}")
+            f.write(f"<title>{title}</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n{body}")
         print("已生成", args.fragment)
 
 

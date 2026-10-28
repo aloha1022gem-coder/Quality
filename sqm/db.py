@@ -57,14 +57,15 @@ _lock = threading.RLock()
 
 
 class Database:
-    def __init__(self, path=DEFAULT_DB):
+    def __init__(self, path=DEFAULT_DB, schema=SCHEMA):
         self.path = path
+        self.schema = schema
         if path != ":memory:":
             os.makedirs(os.path.dirname(path), exist_ok=True)
         self.conn = sqlite3.connect(path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(SCHEMA)
+        self.conn.executescript(schema)
         self.lock = _lock
 
     def all(self, sql, args=()):
@@ -102,4 +103,4 @@ class Database:
             for t in tables:
                 self.conn.execute(f"DROP TABLE {t}")
             self.conn.commit()
-            self.conn.executescript(SCHEMA)
+            self.conn.executescript(self.schema)

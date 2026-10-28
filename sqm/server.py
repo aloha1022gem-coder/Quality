@@ -10,6 +10,7 @@ from urllib.parse import urlparse, parse_qs
 
 from . import analytics, capa, governance
 from .db import ROOT
+from .field.service import FieldService
 from .knowledge import KnowledgeBase
 from .llm import LLM
 
@@ -17,10 +18,11 @@ WEB_DIR = os.path.join(ROOT, "web")
 
 
 class App:
-    def __init__(self, db):
+    def __init__(self, db, field_db=None):
         self.db = db
         self.kb = KnowledgeBase(db)
         self.llm = LLM()
+        self.field = FieldService(field_db) if field_db is not None else None
         self.routes = [
             ("GET", r"/api/meta$", self.meta),
             ("GET", r"/api/dashboard$", lambda q, b: analytics.dashboard(self.db, self.kb)),
@@ -43,6 +45,14 @@ class App:
             ("PUT", r"/api/capa/(\d+)$", lambda q, b, i: capa.update(self.db, int(i), b)),
             ("POST", r"/api/capa/(\d+)/close$", lambda q, b, i: capa.close(self.db, self.kb, int(i), b)),
         ]
+        if self.field:
+            self.routes += self.field.routes
+
+    def export(self, path):
+        """CSV 导出：返回 (内容, 文件名)，不是导出路径时返回 None。"""
+        if path == "/api/export/lots.csv":
+            return governance.export_lots_csv(self.db).encode("utf-8"), "iqc_lots.csv"
+        return self.field.export(path) if self.field else None
 
     def meta(self, q, b):
         return {
@@ -120,10 +130,10 @@ def make_handler(app):
                     except (ValueError, UnicodeDecodeError):
                         return self._send(400, {"error": "请求格式错误"})
             try:
-                if url.path == "/api/export/lots.csv":
-                    return self._send(200, governance.export_lots_csv(app.db).encode("utf-8"),
-                                      "text/csv; charset=utf-8",
-                                      {"Content-Disposition": "attachment; filename=iqc_lots.csv"})
+                exported = app.export(url.path)
+                if exported:
+                    return self._send(200, exported[0], "text/csv; charset=utf-8",
+                                      {"Content-Disposition": f"attachment; filename={exported[1]}"})
                 result = app.dispatch(method, url.path, parse_qs(url.query), body)
                 if result is None:
                     return self._send(404, {"error": "未找到"})
@@ -140,6 +150,8 @@ def make_handler(app):
             path = urlparse(self.path).path
             if path == "/":
                 path = "/index.html"
+            elif path in ("/field", "/field/"):
+                path = "/field.html"
             full = os.path.normpath(os.path.join(WEB_DIR, path.lstrip("/")))
             if not full.startswith(WEB_DIR) or not os.path.isfile(full):
                 return self._send(404, b"Not found", "text/plain")

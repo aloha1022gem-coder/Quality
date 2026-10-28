@@ -1,0 +1,71 @@
+/* 售后故障追踪：在 app.css 基础上补充系列色、热力单元格与改善对比卡片 */
+:root {
+  --s-fau: #1d58b8;
+  --s-gd: #8a4fb5;
+  --s-sink: #1f8378;
+  --before: #8b9792;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --s-fau: #6f9cec; --s-gd: #b98ae0; --s-sink: #4fc0b2; --before: #7f8b86; }
+}
+:root[data-theme="dark"] { --s-fau: #6f9cec; --s-gd: #b98ae0; --s-sink: #4fc0b2; --before: #7f8b86; }
+
+.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.filters select { width: auto; min-width: 140px; }
+.filters .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+
+td.heat { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.heat.h0 { background: var(--ok-soft); }
+td.heat.h2 { background: color-mix(in srgb, var(--crit) 12%, var(--surface)); }
+td.heat.h3 { background: color-mix(in srgb, var(--crit) 24%, var(--surface)); }
+td.heat.h4 { background: color-mix(in srgb, var(--crit) 40%, var(--surface)); color: var(--ink); font-weight: 600; }
+td.heat.na { color: var(--ink-3); }
+.heat-legend { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--ink-3); }
+.heat-legend span { padding: 1px 8px; border-radius: 4px; }
+tr.bp td { border-top: 2px solid var(--accent); }
+
+.kpi .sub { font-size: 12px; color: var(--ink-3); }
+.vs { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.vs .arrow { color: var(--ink-3); }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { background: var(--surface-2); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat b { font-size: 19px; font-variant-numeric: tabular-nums; }
+.stat .small { color: var(--ink-3); }
+
+.bars { display: flex; flex-direction: column; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr) auto; gap: 10px; align-items: center; font-size: 13px; }
+.bar-row .track { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.bar-row .track i { display: block; height: 100%; background: var(--accent); }
+.bar-row .track i.d { background: var(--warn); }
+.bar-row .track i.s { background: var(--crit); }
+.bar-row .track i.u, .bar-row .track i.n { background: var(--ink-3); }
+.bar-row b { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+
+.stackbar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); min-width: 90px; }
+.stackbar i { display: block; height: 100%; }
+.stackbar i.S { background: var(--crit); }
+.stackbar i.D { background: var(--warn); }
+.stackbar i.I { background: var(--accent); }
+.stackbar i.U { background: var(--ink-3); }
+.stackbar i.N { background: var(--line); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+
+.action-card { display: flex; flex-direction: column; gap: 12px; }
+.action-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 18px; font-size: 13px; }
+.action-meta .label { display: block; margin-bottom: 2px; }
+.verdict { display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; }
+.compare { display: grid; grid-template-columns: auto auto auto; gap: 4px 14px; align-items: baseline; font-size: 13px; }
+.compare b { font-size: 20px; font-variant-numeric: tabular-nums; }
+
+.chain { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.chain .node { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.chain .node.key { border-color: var(--accent); background: var(--accent-soft); }
+
+.msg-list { display: flex; flex-direction: column; gap: 4px; }
+.trace-box { display: flex; gap: 8px; flex-wrap: wrap; }
+.trace-box input { flex: 1 1 220px; }
+.explain { font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-radius: 6px; padding: 10px 12px; }
+.explain b { color: var(--ink); }
+
+.nowrap-table td, .nowrap-table th { white-space: nowrap; }

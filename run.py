@@ -5,6 +5,8 @@ import threading
 import webbrowser
 
 from sqm.db import Database
+from sqm.field.db import FieldDatabase
+from sqm.field.seed import seed as seed_field
 from sqm.seed import seed
 from sqm.server import App, serve
 
@@ -21,7 +23,11 @@ def main():
     if args.reset or db.is_empty():
         info = seed(db)
         print(f"已生成演示数据：{info['lots']} 个 IQC 批次，{info['kb_docs']} 份知识库文件")
-    app = App(db)
+    field_db = FieldDatabase()
+    if args.reset or field_db.is_empty():
+        info = seed_field(field_db)
+        print(f"已生成售后故障演示数据：{info['batches']} 个生产批次，{info['failures']} 条报修记录")
+    app = App(db, field_db)
     try:
         httpd = serve(app, args.host, args.port)
     except OSError:
@@ -29,6 +35,7 @@ def main():
         sys.exit(1)
     url = f"http://{args.host}:{args.port}/"
     print(f"SQM Insight 已启动：{url}  （按 Ctrl+C 停止）")
+    print(f"售后故障追踪：{url}field")
     if not args.no_browser:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
